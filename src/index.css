@@ -1,0 +1,115 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  font-family: system-ui, -apple-system, sans-serif;
+  line-height: 1.5;
+  font-weight: 400;
+}
+
+body {
+  margin: 0;
+  display: flex;
+  place-items: center;
+  min-width: 320px;
+  min-height: 100vh;
+}
+
+#root {
+  width: 100vw;
+  height: 100vh;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.3s ease-out forwards;
+}
+
+/* Leaflet map styles */
+.leaflet-container {
+  width: 100%;
+  height: 100%;
+  z-index: 1;
+}
+
+.leaflet-control-container .leaflet-control {
+  background-color: rgba(0, 0, 0, 0.7);
+  color: white;
+  border: none;
+  backdrop-filter: blur(4px);
+}
+
+/* Position zoom controls higher to avoid compass */
+.leaflet-top.leaflet-right {
+  top: 70px; /* Move down to avoid the view toggle button */
+}
+
+.leaflet-control-zoom a {
+  color: white !important;
+  border-color: rgba(255, 255, 255, 0.2) !important;
+}
+
+.leaflet-control-zoom a:hover {
+  background-color: rgba(255, 255, 255, 0.1) !important;
+}
+
+.leaflet-popup-content-wrapper {
+  background-color: rgba(0, 0, 0, 0.8);
+  color: white;
+  backdrop-filter: blur(4px);
+}
+
+.leaflet-popup-tip {
+  background-color: rgba(0, 0, 0, 0.8);
+}
+
+/* Ensure map controls don't overlap UI */
+.leaflet-control-container {
+  z-index: 1 !important;
+}
+
+.leaflet-pane {
+  z-index: 1 !important;
+}
+
+.leaflet-top,
+.leaflet-bottom {
+  z-index: 1 !important;
+}
+
+/* Compass rose styles */
+@keyframes pulse {
+  0% {
+    opacity: 0.6;
+  }
+  50% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0.6;
+  }
+}
+
+.compass-pulse {
+  animation: pulse 2s ease-in-out infinite;
+}
+
+.drop-shadow {
+  filter: drop-shadow(0px 0px 4px rgba(0, 0, 0, 0.5));
+}
+
+/* Compass heading text shadow */
+.heading-text {
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
+}
