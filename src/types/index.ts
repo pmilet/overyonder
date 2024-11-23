@@ -12,5 +12,9 @@ export interface CompassReading {
 export interface DestinationInfo {
   name: string;
   distance: number;
-  location: Location;
+  location: {
+    latitude: number;
+    longitude: number;
+  };
+  isMaritime?: boolean;
 }

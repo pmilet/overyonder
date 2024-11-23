@@ -4,19 +4,24 @@ import { Icon } from 'leaflet';
 import { useStore } from '../store';
 import 'leaflet/dist/leaflet.css';
 
-// Fix for default marker icons in React-Leaflet
-import icon from 'leaflet/dist/images/marker-icon.png';
-import iconShadow from 'leaflet/dist/images/marker-shadow.png';
-
-const defaultIcon = new Icon({
-  iconUrl: icon,
-  shadowUrl: iconShadow,
+// Create custom icons for different location types
+const landIcon = new Icon({
+  iconUrl: 'https://unpkg.com/leaflet@1.7.1/dist/images/marker-icon.png',
+  shadowUrl: 'https://unpkg.com/leaflet@1.7.1/dist/images/marker-shadow.png',
   iconSize: [25, 41],
-  iconAnchor: [12, 41]
+  iconAnchor: [12, 41],
+  popupAnchor: [1, -34],
+  shadowSize: [41, 41]
+});
+
+const currentLocationIcon = new Icon({
+  ...landIcon.options,
+  iconUrl: 'https://unpkg.com/leaflet@1.7.1/dist/images/marker-icon-2x.png',
+  iconSize: [25, 41]
 });
 
 export const MapView: React.FC = () => {
-  const { location, destinations, heading, isHeadingLocked } = useStore();
+  const { location, destinations } = useStore();
 
   if (!location) return null;
 
@@ -33,7 +38,6 @@ export const MapView: React.FC = () => {
         className="h-full w-full"
         zoomControl={false}
       >
-        {/* Add custom positioned zoom control to the right side, above the compass */}
         <ZoomControl position="topright" />
         
         <TileLayer
@@ -41,34 +45,40 @@ export const MapView: React.FC = () => {
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
         />
         
-        {/* Current location */}
         <Marker 
           position={[location.latitude, location.longitude]} 
-          icon={defaultIcon}
+          icon={currentLocationIcon}
         >
           <Popup>
-            Current Location
-            <br />
-            {location.latitude.toFixed(6)}°, {location.longitude.toFixed(6)}°
+            <div className="text-sm">
+              <div className="font-medium mb-1">Current Location</div>
+              <div className="opacity-75">
+                {location.latitude.toFixed(6)}°, {location.longitude.toFixed(6)}°
+              </div>
+            </div>
           </Popup>
         </Marker>
 
-        {/* Destinations */}
         {destinations.map((dest, index) => (
           <Marker
             key={index}
             position={[dest.location.latitude, dest.location.longitude]}
-            icon={defaultIcon}
+            icon={landIcon}
           >
             <Popup>
-              {dest.name}
-              <br />
-              {dest.distance}km
+              <div className="text-sm">
+                <div className="font-medium mb-1">
+                  {dest.isMaritime ? '🌊 ' : ''}{dest.name}
+                </div>
+                <div className="opacity-75">Distance: {dest.distance}km</div>
+                <div className="opacity-75 text-xs mt-1">
+                  {dest.location.latitude.toFixed(6)}°, {dest.location.longitude.toFixed(6)}°
+                </div>
+              </div>
             </Popup>
           </Marker>
         ))}
 
-        {/* Path line */}
         {destinations.length > 0 && (
           <Polyline
             positions={positions as [number, number][]}

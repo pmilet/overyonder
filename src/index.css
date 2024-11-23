@@ -10,15 +10,10 @@
 
 body {
   margin: 0;
-  display: flex;
-  place-items: center;
-  min-width: 320px;
-  min-height: 100vh;
-}
-
-#root {
+  padding: 0;
   width: 100vw;
   height: 100vh;
+  overflow: hidden;
 }
 
 @keyframes fadeIn {
@@ -50,9 +45,8 @@ body {
   backdrop-filter: blur(4px);
 }
 
-/* Position zoom controls higher to avoid compass */
 .leaflet-top.leaflet-right {
-  top: 70px; /* Move down to avoid the view toggle button */
+  top: 70px;
 }
 
 .leaflet-control-zoom a {
@@ -74,7 +68,6 @@ body {
   background-color: rgba(0, 0, 0, 0.8);
 }
 
-/* Ensure map controls don't overlap UI */
 .leaflet-control-container {
   z-index: 1 !important;
 }
@@ -88,7 +81,7 @@ body {
   z-index: 1 !important;
 }
 
-/* Compass rose styles */
+/* Compass styles */
 @keyframes pulse {
   0% {
     opacity: 0.6;
@@ -109,7 +102,6 @@ body {
   filter: drop-shadow(0px 0px 4px rgba(0, 0, 0, 0.5));
 }
 
-/* Compass heading text shadow */
 .heading-text {
   text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
 }

@@ -2,11 +2,15 @@ import React, { useEffect, useCallback, useState } from 'react';
 import toast from 'react-hot-toast';
 import { useLocation } from '../hooks/useLocation';
 import { useStore } from '../store';
-import { findDestinationsAlongHeading } from '../services/geocoding';
+import { findDestinationsAlongHeading, fetchLocationDetails, isMaritimeLocation } from '../services/geocoding';
+import type { DestinationInfo } from '../types';
 
 interface LocationDetails {
   id: string;
   details: string;
+  error?: string;
+  isLoading?: boolean;
+  isMaritime?: boolean;
 }
 
 export const LocationInfo: React.FC = () => {
@@ -21,35 +25,36 @@ export const LocationInfo: React.FC = () => {
     setDistanceIncrement 
   } = useStore();
   const [currentLocationName, setCurrentLocationName] = useState<string>('');
+  const [isLoadingLocation, setIsLoadingLocation] = useState(false);
   const [destinationDetails, setDestinationDetails] = useState<LocationDetails[]>([]);
 
-  // Get current location details when location is available
   useEffect(() => {
     if (location) {
       setLocation(location);
+      setIsLoadingLocation(true);
       
-      fetch(
-        `https://nominatim.openstreetmap.org/reverse?lat=${location.latitude}&lon=${location.longitude}&format=json`,
-        {
-          headers: {
-            'Accept': 'application/json',
-            'User-Agent': 'OverYonder/1.0'
-          }
-        }
-      )
-        .then(response => response.json())
+      fetchLocationDetails(location.latitude, location.longitude)
         .then(data => {
           if (data.display_name) {
             setCurrentLocationName(data.display_name);
-            toast.success(
-              <div>
-                <div>Current Location:</div>
-                <div className="text-sm mt-1">{data.display_name}</div>
+            const isMaritime = isMaritimeLocation(data.display_name);
+            toast(
+              <div className="flex items-start gap-2">
+                <span className="text-xl">{isMaritime ? '🌊' : '🌍'}</span>
+                <div>
+                  <div className="font-medium">Current Location</div>
+                  <div className="text-sm mt-1 opacity-90">{data.display_name}</div>
+                </div>
               </div>,
               {
                 duration: 5000,
                 id: 'initial-location',
-                icon: '📍'
+                style: {
+                  background: '#1a1a1a',
+                  color: '#fff',
+                  borderRadius: '8px',
+                  padding: '12px'
+                }
               }
             );
           }
@@ -57,37 +62,55 @@ export const LocationInfo: React.FC = () => {
         .catch(err => {
           console.error('Error fetching location details:', err);
           setCurrentLocationName('Location details unavailable');
+          toast.error('Unable to fetch location details. Please try again later.');
+        })
+        .finally(() => {
+          setIsLoadingLocation(false);
         });
     }
   }, [location, setLocation]);
 
   useEffect(() => {
-    destinations.forEach(dest => {
-      const destId = `${dest.location.latitude},${dest.location.longitude}`;
+    // Only fetch details for the last destination
+    const lastDestination = destinations[destinations.length - 1];
+    if (lastDestination) {
+      const destId = `${lastDestination.location.latitude},${lastDestination.location.longitude}`;
       if (!destinationDetails.some(d => d.id === destId)) {
-        fetch(
-          `https://nominatim.openstreetmap.org/reverse?lat=${dest.location.latitude}&lon=${dest.location.longitude}&format=json`,
-          {
-            headers: {
-              'Accept': 'application/json',
-              'User-Agent': 'OverYonder/1.0'
-            }
-          }
-        )
-          .then(response => response.json())
+        setDestinationDetails(prev => [
+          ...prev,
+          { id: destId, details: '', isLoading: true }
+        ]);
+
+        fetchLocationDetails(lastDestination.location.latitude, lastDestination.location.longitude)
           .then(data => {
             if (data.display_name) {
-              setDestinationDetails(prev => [
-                ...prev,
-                { id: destId, details: data.display_name }
-              ]);
+              const isMaritime = isMaritimeLocation(data.display_name);
+              setDestinationDetails(prev => 
+                prev.map(d => 
+                  d.id === destId 
+                    ? { id: destId, details: data.display_name, isLoading: false, isMaritime }
+                    : d
+                )
+              );
             }
           })
           .catch(err => {
             console.error('Error fetching destination details:', err);
+            setDestinationDetails(prev => 
+              prev.map(d => 
+                d.id === destId 
+                  ? { 
+                      id: destId, 
+                      details: 'Location details unavailable',
+                      error: 'Failed to load location details',
+                      isLoading: false 
+                    }
+                  : d
+              )
+            );
           });
       }
-    });
+    }
   }, [destinations]);
 
   const findNextDestination = useCallback(async () => {
@@ -106,7 +129,14 @@ export const LocationInfo: React.FC = () => {
     }
 
     try {
-      toast.loading('Finding next destination...', { id: 'location-search' });
+      toast.loading('Finding next destination...', { 
+        id: 'location-search',
+        style: {
+          background: '#1a1a1a',
+          color: '#fff',
+          borderRadius: '8px'
+        }
+      });
       
       const nextDistance = (destinations.length + 1) * distanceIncrement;
       const currentHeading = heading?.heading ?? 0;
@@ -119,13 +149,46 @@ export const LocationInfo: React.FC = () => {
       
       if (destination) {
         addDestination(destination);
-        toast.success(`Found ${destination.name} at ${destination.distance}km`, { id: 'location-search' });
+        toast.success(
+          <div className="flex items-start gap-2">
+            <span className="text-xl">{destination.isMaritime ? '🌊' : '🎯'}</span>
+            <div>
+              <div className="font-medium">Destination Found!</div>
+              <div className="text-sm mt-1 opacity-90">
+                {destination.name} at {destination.distance}km
+              </div>
+            </div>
+          </div>,
+          {
+            id: 'location-search',
+            style: {
+              background: '#1a1a1a',
+              color: '#fff',
+              borderRadius: '8px',
+              padding: '12px'
+            }
+          }
+        );
       } else {
-        toast.error('No destination found in this direction', { id: 'location-search' });
+        toast.error('No destination found in this direction', { 
+          id: 'location-search',
+          style: {
+            background: '#1a1a1a',
+            color: '#fff',
+            borderRadius: '8px'
+          }
+        });
       }
     } catch (err) {
       console.error('Error finding destination:', err);
-      toast.error('Failed to find next destination', { id: 'location-search' });
+      toast.error('Failed to find next destination', { 
+        id: 'location-search',
+        style: {
+          background: '#1a1a1a',
+          color: '#fff',
+          borderRadius: '8px'
+        }
+      });
     }
   }, [location, heading, isHeadingLocked, destinations.length, addDestination, distanceIncrement]);
 
@@ -134,6 +197,11 @@ export const LocationInfo: React.FC = () => {
     if (!isNaN(value) && value > 0) {
       setDistanceIncrement(value);
     }
+  };
+
+  const getDestinationDetails = (dest: DestinationInfo) => {
+    const destId = `${dest.location.latitude},${dest.location.longitude}`;
+    return destinationDetails.find(d => d.id === destId);
   };
 
   if (error) {
@@ -150,10 +218,7 @@ export const LocationInfo: React.FC = () => {
     );
   }
 
-  const getDestinationDetails = (dest: { location: Location }) => {
-    const destId = `${dest.location.latitude},${dest.location.longitude}`;
-    return destinationDetails.find(d => d.id === destId)?.details;
-  };
+  const lastDestination = destinations[destinations.length - 1];
 
   return (
     <div className="absolute bottom-32 left-4 bg-black/50 text-white p-2 rounded max-w-sm">
@@ -192,43 +257,64 @@ export const LocationInfo: React.FC = () => {
           )}
           
           <div className="mt-2 border-t border-white/20 pt-2">
-            <div className="font-semibold mb-1">Destinations Found:</div>
-            {/* Current location as first destination */}
+            <div className="font-semibold mb-1">Current Location:</div>
             <div className="text-sm mb-2 animate-fade-in bg-black/20 p-2 rounded">
-              <div className="font-medium">Current Location (0km)</div>
-              {currentLocationName ? (
+              {isLoadingLocation ? (
+                <div className="text-xs text-gray-300 mt-1 animate-pulse">
+                  Fetching location details...
+                </div>
+              ) : currentLocationName ? (
                 <div className="text-xs text-gray-300 mt-1 break-words leading-relaxed">
                   {currentLocationName}
                 </div>
               ) : (
-                <div className="text-xs text-gray-300 mt-1 animate-pulse">
-                  Fetching location details...
+                <div className="text-xs text-red-300 mt-1">
+                  Location details unavailable
                 </div>
               )}
               <div className="text-xs text-gray-400 mt-1">
                 {location.latitude.toFixed(6)}°, {location.longitude.toFixed(6)}°
               </div>
             </div>
-            {/* Other destinations */}
-            {destinations.map((dest, index) => (
-              <div key={index} className="text-sm mb-2 animate-fade-in bg-black/20 p-2 rounded">
+
+            {lastDestination && (
+              <div className="text-sm mb-2 animate-fade-in bg-black/20 p-2 rounded">
                 <div className="font-medium">
-                  {dest.name} ({dest.distance}km)
+                  Last Found: {lastDestination.name} ({lastDestination.distance}km)
                 </div>
-                {getDestinationDetails(dest) ? (
-                  <div className="text-xs text-gray-300 mt-1 break-words leading-relaxed">
-                    {getDestinationDetails(dest)}
-                  </div>
-                ) : (
-                  <div className="text-xs text-gray-300 mt-1 animate-pulse">
-                    Fetching location details...
-                  </div>
-                )}
+                {(() => {
+                  const details = getDestinationDetails(lastDestination);
+                  if (!details) {
+                    return (
+                      <div className="text-xs text-gray-300 mt-1 animate-pulse">
+                        Fetching location details...
+                      </div>
+                    );
+                  } else if (details.isLoading) {
+                    return (
+                      <div className="text-xs text-gray-300 mt-1 animate-pulse">
+                        Loading location details...
+                      </div>
+                    );
+                  } else if (details.error) {
+                    return (
+                      <div className="text-xs text-red-300 mt-1">
+                        {details.error}
+                      </div>
+                    );
+                  } else {
+                    return (
+                      <div className="text-xs text-gray-300 mt-1 break-words leading-relaxed">
+                        {details.isMaritime ? '🌊 ' : ''}{details.details}
+                      </div>
+                    );
+                  }
+                })()}
                 <div className="text-xs text-gray-400 mt-1">
-                  {dest.location.latitude.toFixed(6)}°, {dest.location.longitude.toFixed(6)}°
+                  {lastDestination.location.latitude.toFixed(6)}°, {lastDestination.location.longitude.toFixed(6)}°
                 </div>
               </div>
-            ))}
+            )}
           </div>
 
           {isHeadingLocked && (

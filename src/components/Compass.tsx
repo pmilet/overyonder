@@ -1,33 +1,20 @@
-import React, { useState } from 'react';
+import React from 'react';
 import toast from 'react-hot-toast';
 import { useCompass } from '../hooks/useCompass';
 import { useStore } from '../store';
+import { config } from '../config';
 
 export const Compass: React.FC = () => {
   const { compass, error } = useCompass();
   const { heading, isHeadingLocked, setHeading, toggleHeadingLock, reset } = useStore();
-  const [manualHeading, setManualHeading] = useState<string>(heading?.heading.toString() || '0');
-
-  const displayHeading = isHeadingLocked ? heading : compass;
 
   const handleLockToggle = () => {
     if (!isHeadingLocked) {
-      const headingValue = parseFloat(manualHeading);
-      if (isNaN(headingValue) || headingValue < 0 || headingValue > 360) {
-        toast.error('Please enter a valid heading between 0° and 360°');
-        return;
-      }
-      setHeading({ heading: headingValue, accuracy: undefined });
-      toast.success(`Heading set to ${headingValue}° (Manual)`);
+      const headingValue = compass?.heading ?? config.defaultHeading;
+      setHeading({ heading: headingValue, accuracy: compass?.accuracy });
+      toast.success(`Heading set to ${headingValue.toFixed(1)}° ${compass ? '(Device Compass)' : '(Default)'}`);
     }
     toggleHeadingLock();
-  };
-
-  const handleManualHeadingChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = e.target.value;
-    if (value === '' || (!isNaN(Number(value)) && Number(value) >= 0 && Number(value) <= 360)) {
-      setManualHeading(value);
-    }
   };
 
   return (
@@ -36,6 +23,9 @@ export const Compass: React.FC = () => {
         {error ? (
           <div className="text-yellow-400 text-sm mb-2">
             Device compass unavailable: {error}
+            <div className="text-white text-xs mt-1">
+              Using default heading: {config.defaultHeading}°
+            </div>
           </div>
         ) : compass ? (
           <div className="mb-2">
@@ -48,27 +38,11 @@ export const Compass: React.FC = () => {
         ) : (
           <div className="text-yellow-400 text-sm mb-2">
             Device compass not available
+            <div className="text-white text-xs mt-1">
+              Using default heading: {config.defaultHeading}°
+            </div>
           </div>
         )}
-        
-        <div>
-          <label className="text-sm block mb-1">
-            Manual Heading:
-          </label>
-          <div className="flex gap-2 items-center">
-            <input
-              type="number"
-              min="0"
-              max="360"
-              step="0.1"
-              value={manualHeading}
-              onChange={handleManualHeadingChange}
-              placeholder="Enter heading (0-360°)"
-              className="w-24 px-2 py-1 rounded bg-black/30 text-white border border-white/20 focus:outline-none focus:border-blue-500"
-            />
-            <span>°</span>
-          </div>
-        </div>
       </div>
 
       <div className="flex gap-2">
@@ -94,7 +68,7 @@ export const Compass: React.FC = () => {
           Locked Heading: {heading.heading.toFixed(1)}°
           <br />
           <span className="text-xs opacity-75">
-            Source: {compass ? 'Device Compass' : 'Manual Input'}
+            Source: {compass ? 'Device Compass' : 'Default Configuration'}
           </span>
         </div>
       )}

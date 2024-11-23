@@ -1,4 +1,3 @@
-import { Toaster } from 'react-hot-toast';
 import { Camera } from './components/Camera';
 import { Compass } from './components/Compass';
 import { CompassRose } from './components/CompassRose';
@@ -30,7 +29,6 @@ export default function App() {
           <LocationInfo />
         </div>
       </div>
-      <Toaster position="top-center" containerClassName="z-[1100]" />
     </div>
   );
 }

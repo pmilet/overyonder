@@ -5,5 +5,8 @@ export default defineConfig({
   plugins: [react()],
   server: {
     host: true
-  }
+  },
+  assetsInclude: ['**/*.png'],
+  // Ensure public directory is served correctly
+  publicDir: 'public'
 });
