@@ -8,6 +8,34 @@ export const Compass: React.FC = () => {
   const { compass, error } = useCompass();
   const { heading, isHeadingLocked, setHeading, toggleHeadingLock, reset } = useStore();
 
+  const [isDragging, setIsDragging] = React.useState(false);
+  const [startX, setStartX] = React.useState(0);
+  const [startHeading, setStartHeading] = React.useState(0);
+
+  const handleMouseDown = (e: React.MouseEvent) => {
+    if (!isHeadingLocked) return;
+    setIsDragging(true);
+    setStartX(e.clientX);
+    setStartHeading(heading?.heading || config.defaultHeading);
+  };
+
+  const handleMouseMove = (e: React.MouseEvent) => {
+    if (!isDragging) return;
+    const diff = e.clientX - startX;
+    const newHeading = (startHeading + diff * 0.5) % 360;
+    setHeading({ heading: newHeading >= 0 ? newHeading : 360 + newHeading });
+  };
+
+  const handleMouseUp = () => {
+    setIsDragging(false);
+  };
+
+  React.useEffect(() => {
+    const handleGlobalMouseUp = () => setIsDragging(false);
+    window.addEventListener('mouseup', handleGlobalMouseUp);
+    return () => window.removeEventListener('mouseup', handleGlobalMouseUp);
+  }, []);
+
   const handleLockToggle = () => {
     if (!isHeadingLocked) {
       const headingValue = compass?.heading ?? config.defaultHeading;
@@ -65,8 +93,21 @@ export const Compass: React.FC = () => {
 
       {isHeadingLocked && heading && (
         <div className="mt-2 text-sm text-center border-t border-white/20 pt-2">
-          Locked Heading: {heading.heading.toFixed(1)}°
-          <br />
+          <div className="flex items-center justify-center gap-2">
+            <button
+              onClick={() => setHeading({ heading: (heading.heading - 1 + 360) % 360 })}
+              className="px-2 py-1 bg-white/20 rounded hover:bg-white/30 transition-colors"
+            >
+              -
+            </button>
+            Locked Heading: {heading.heading.toFixed(1)}°
+            <button
+              onClick={() => setHeading({ heading: (heading.heading + 1) % 360 })}
+              className="px-2 py-1 bg-white/20 rounded hover:bg-white/30 transition-colors"
+            >
+              +
+            </button>
+          </div>
           <span className="text-xs opacity-75">
             Source: {compass ? 'Device Compass' : 'Default Configuration'}
           </span>

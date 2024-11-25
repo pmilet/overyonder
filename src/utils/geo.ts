@@ -30,25 +30,37 @@ export function calculateDestination(
   lat: number,
   lon: number,
   distance: number,
-  bearing: number
+  heading: number
 ): { latitude: number; longitude: number } {
-  const δ = distance / EARTH_RADIUS;
-  const θ = toRadians(bearing);
-  const φ1 = toRadians(lat);
-  const λ1 = toRadians(lon);
+  // Convert to radians
+  const R = 6371; // Earth's radius in km
+  const d = distance / R;
+  const lat1 = lat * Math.PI / 180;
+  const lon1 = lon * Math.PI / 180;
+  const brng = heading * Math.PI / 180;
 
-  const φ2 = Math.asin(
-    Math.sin(φ1) * Math.cos(δ) +
-    Math.cos(φ1) * Math.sin(δ) * Math.cos(θ)
-  );
+  // Special case for due East/West (constant latitude)
+  if (heading === 90 || heading === 270) {
+    const dLon = (heading === 90 ? d : -d) / Math.cos(lat1);
+    return {
+      latitude: lat,
+      longitude: ((lon + (dLon * 180 / Math.PI)) + 540) % 360 - 180 // Normalize longitude
+    };
+  }
 
-  const λ2 = λ1 + Math.atan2(
-    Math.sin(θ) * Math.sin(δ) * Math.cos(φ1),
-    Math.cos(δ) - Math.sin(φ1) * Math.sin(φ2)
-  );
+  // Standard rhumb line calculation
+  let lat2 = lat1 + d * Math.cos(brng);
+  const dPhi = Math.log(Math.tan(lat2/2 + Math.PI/4) / Math.tan(lat1/2 + Math.PI/4));
+  const q = Math.abs(dPhi) > 1e-10 ? (lat2 - lat1) / dPhi : Math.cos(lat1);
+  const dLon = d * Math.sin(brng) / q;
+  
+  // Handle crossing the pole
+  if (Math.abs(lat2) > Math.PI/2) lat2 = lat2 > 0 ? Math.PI - lat2 : -Math.PI - lat2;
+  
+  const lon2 = ((lon1 + dLon + Math.PI) % (2 * Math.PI)) - Math.PI;
 
   return {
-    latitude: toDegrees(φ2),
-    longitude: toDegrees(λ2)
+    latitude: lat2 * 180 / Math.PI,
+    longitude: lon2 * 180 / Math.PI
   };
 }

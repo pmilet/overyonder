@@ -37,26 +37,6 @@ export const LocationInfo: React.FC = () => {
         .then(data => {
           if (data.display_name) {
             setCurrentLocationName(data.display_name);
-            const isMaritime = isMaritimeLocation(data.display_name);
-            toast(
-              <div className="flex items-start gap-2">
-                <span className="text-xl">{isMaritime ? '🌊' : '🌍'}</span>
-                <div>
-                  <div className="font-medium">Current Location</div>
-                  <div className="text-sm mt-1 opacity-90">{data.display_name}</div>
-                </div>
-              </div>,
-              {
-                duration: 5000,
-                id: 'initial-location',
-                style: {
-                  background: '#1a1a1a',
-                  color: '#fff',
-                  borderRadius: '8px',
-                  padding: '12px'
-                }
-              }
-            );
           }
         })
         .catch(err => {
@@ -82,9 +62,14 @@ export const LocationInfo: React.FC = () => {
         ]);
 
         fetchLocationDetails(lastDestination.location.latitude, lastDestination.location.longitude)
-          .then(data => {
+          .then(async data => {
             if (data.display_name) {
-              const isMaritime = isMaritimeLocation(data.display_name);
+              const isMaritime = await isMaritimeLocation({
+                display_name: data.display_name,
+                address: data.address || {},
+                lat: lastDestination.location.latitude.toString(),
+                lon: lastDestination.location.longitude.toString()
+              });
               setDestinationDetails(prev => 
                 prev.map(d => 
                   d.id === destId 
