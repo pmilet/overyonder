@@ -2,6 +2,7 @@ import { Location, DestinationInfo } from '../types';
 import toast from 'react-hot-toast';
 import { config } from '../config';
 import { calculateDistance, calculateDestination } from '../utils/geo';
+import { isLand } from '../utils/isLand';
 
 interface GeocodingError extends Error {
   type: 'NETWORK_ERROR' | 'API_ERROR' | 'RATE_LIMIT' | 'PARSE_ERROR';
@@ -73,14 +74,8 @@ export const fetchLocationDetailsNominatim = async function(lat: number, lon: nu
       throw error;
     }
 
-    // Enhanced water detection
-    const isWater = Boolean(
-      data.address?.ocean ||
-      data.address?.sea ||
-      data.address?.water ||
-      data.address?.bay ||
-      /ocean|sea|gulf|bay|strait|channel/i.test(data.display_name)
-    );
+    // Replace water detection with isLand utility
+    const isWater = !await isLand(lat, lon);
 
     return {
       display_name: data.display_name,
@@ -158,11 +153,11 @@ async function findDestinationsAlongHeading(
         heading
       );
 
-      // Get location data
+      // Replace water check with isLand utility
+      const isLocationLand = await isLand(dest.latitude, dest.longitude);
       const osmData = await fetchLocationDetailsNominatim(dest.latitude, dest.longitude);
-      const isWater = osmData.isWater;
 
-      if (osmData.display_name && !isWater) {
+      if (osmData.display_name && isLocationLand) {
         // Found a land location - return it
         const actualDistance = calculateDistance(
           start.latitude,
@@ -199,16 +194,6 @@ async function findDestinationsAlongHeading(
   toast.error('No destination found in the given direction.');
   return null;
 }
-
-export const isMaritimeLocation = (data: NominatimFeature): boolean => {
-  return Boolean(
-    data.address?.ocean ||
-    data.address?.sea ||
-    data.address?.water ||
-    data.address?.bay ||
-    /ocean|sea|gulf|bay|strait|channel/i.test(data.display_name)
-  );
-};
 
 // Then create the alias export
 export const fetchLocationDetails = fetchLocationDetailsNominatim;

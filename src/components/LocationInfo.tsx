@@ -2,7 +2,8 @@ import React, { useEffect, useCallback, useState } from 'react';
 import toast from 'react-hot-toast';
 import { useLocation } from '../hooks/useLocation';
 import { useStore } from '../store';
-import { findDestinationsAlongHeading, fetchLocationDetails, isMaritimeLocation } from '../services/geocoding';
+import { findDestinationsAlongHeading, fetchLocationDetails } from '../services/geocoding';
+import { isLand } from '../utils/isLand';
 import type { DestinationInfo } from '../types';
 
 interface LocationDetails {
@@ -64,16 +65,19 @@ export const LocationInfo: React.FC = () => {
         fetchLocationDetails(lastDestination.location.latitude, lastDestination.location.longitude)
           .then(async data => {
             if (data.display_name) {
-              const isMaritime = await isMaritimeLocation({
-                display_name: data.display_name,
-                address: data.address || {},
-                lat: lastDestination.location.latitude.toString(),
-                lon: lastDestination.location.longitude.toString()
-              });
+              const isLandLocation = await isLand(
+                lastDestination.location.latitude,
+                lastDestination.location.longitude
+              );
               setDestinationDetails(prev => 
                 prev.map(d => 
                   d.id === destId 
-                    ? { id: destId, details: data.display_name, isLoading: false, isMaritime }
+                    ? { 
+                        id: destId, 
+                        details: data.display_name, 
+                        isLoading: false, 
+                        isMaritime: !isLandLocation 
+                      }
                     : d
                 )
               );

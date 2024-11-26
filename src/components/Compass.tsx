@@ -8,34 +8,6 @@ export const Compass: React.FC = () => {
   const { compass, error } = useCompass();
   const { heading, isHeadingLocked, setHeading, toggleHeadingLock, reset } = useStore();
 
-  const [isDragging, setIsDragging] = React.useState(false);
-  const [startX, setStartX] = React.useState(0);
-  const [startHeading, setStartHeading] = React.useState(0);
-
-  const handleMouseDown = (e: React.MouseEvent) => {
-    if (!isHeadingLocked) return;
-    setIsDragging(true);
-    setStartX(e.clientX);
-    setStartHeading(heading?.heading || config.defaultHeading);
-  };
-
-  const handleMouseMove = (e: React.MouseEvent) => {
-    if (!isDragging) return;
-    const diff = e.clientX - startX;
-    const newHeading = (startHeading + diff * 0.5) % 360;
-    setHeading({ heading: newHeading >= 0 ? newHeading : 360 + newHeading });
-  };
-
-  const handleMouseUp = () => {
-    setIsDragging(false);
-  };
-
-  React.useEffect(() => {
-    const handleGlobalMouseUp = () => setIsDragging(false);
-    window.addEventListener('mouseup', handleGlobalMouseUp);
-    return () => window.removeEventListener('mouseup', handleGlobalMouseUp);
-  }, []);
-
   const handleLockToggle = () => {
     if (!isHeadingLocked) {
       const headingValue = compass?.heading ?? config.defaultHeading;
