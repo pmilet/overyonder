@@ -44,19 +44,7 @@ export async function isLand(latitude: number, longitude: number): Promise<Locat
     ].filter(Boolean);
 
     if (waterFeatures.length > 0) {
-      // If we have a country but also water features, it's territorial waters
-      if (address.country && !address.city && !address.municipality && !address.county) {
-        return {
-          isLand: false,
-          details: {
-            displayName: data.display_name || 'Unknown location',
-            type: 'territorial_waters',
-            description: `Territorial waters of ${address.country} (${waterFeatures.join(', ')})`
-          }
-        };
-      }
-
-      // International waters or general water body
+      // Even if we have a country, if there are water features, it's water
       return {
         isLand: false,
         details: {
@@ -67,30 +55,30 @@ export async function isLand(latitude: number, longitude: number): Promise<Locat
       };
     }
 
-    // If we have only a country without any city/municipality/county, it might be territorial waters
-    if (address.country && !address.city && !address.municipality && !address.county) {
+    // It's land only if we have detailed address information
+    if (address.city || address.municipality || address.county) {
       return {
-        isLand: false,
+        isLand: true,
         details: {
           displayName: data.display_name || 'Unknown location',
-          type: 'territorial_waters',
-          description: `Territorial waters of ${address.country}`
+          type: 'land',
+          description: [
+            address.city || address.municipality,
+            address.county,
+            address.state,
+            address.country
+          ].filter(Boolean).join(', ') || 'Land area'
         }
       };
     }
 
-    // It's land if we have detailed address information
+    // If we only have country without detailed info, it's territorial waters
     return {
-      isLand: true,
+      isLand: false,
       details: {
         displayName: data.display_name || 'Unknown location',
-        type: 'land',
-        description: [
-          address.city || address.municipality,
-          address.county,
-          address.state,
-          address.country
-        ].filter(Boolean).join(', ') || 'Land area'
+        type: 'territorial_waters',
+        description: `Territorial waters of ${address.country || 'unknown country'}`
       }
     };
   } catch (error) {

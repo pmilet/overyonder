@@ -43,7 +43,7 @@ export const LocationInfo: React.FC = () => {
         .catch(err => {
           console.error('Error fetching location details:', err);
           setCurrentLocationName('Location details unavailable');
-          toast.error('Unable to fetch location details. Please try again later.');
+          toast.error('Unable to fetch location details');
         })
         .finally(() => {
           setIsLoadingLocation(false);
@@ -52,11 +52,10 @@ export const LocationInfo: React.FC = () => {
   }, [location, setLocation]);
 
   useEffect(() => {
-    // Only fetch details for the last destination
     const lastDestination = destinations[destinations.length - 1];
     if (lastDestination) {
       const destId = `${lastDestination.location.latitude},${lastDestination.location.longitude}`;
-      if (!destinationDetails.some(d => d.id === destId)) {
+      if (!destinationDetails.some(d => d.id === destId || d.error)) {
         setDestinationDetails(prev => [
           ...prev,
           { id: destId, details: '', isLoading: true }
@@ -113,71 +112,49 @@ export const LocationInfo: React.FC = () => {
       return;
     }
 
-    if (!heading) {
-      toast.error('No heading set. Using default heading (0°)');
-    }
-
     try {
-      toast.loading('Finding next destination...', { 
-        id: 'location-search',
-        style: {
-          background: '#1a1a1a',
-          color: '#fff',
-          borderRadius: '8px'
-        }
-      });
+      toast.loading('Finding next destination...', { id: 'location-search' });
       
-      const nextDistance = (destinations.length + 1) * distanceIncrement;
       const currentHeading = heading?.heading ?? 0;
+      let nextDistance = (destinations.length + 1) * distanceIncrement;
+      let foundLand = false;
+      let attempts = 0;
+      const maxAttempts = 10; // Prevent infinite loops
       
-      const destination = await findDestinationsAlongHeading(
-        location,
-        currentHeading,
-        nextDistance
-      );
-      
-      if (destination) {
-        addDestination(destination);
-        toast.success(
-          <div className="flex items-start gap-2">
-            <span className="text-xl">{destination.isMaritime ? '🌊' : '🎯'}</span>
-            <div>
-              <div className="font-medium">Destination Found!</div>
-              <div className="text-sm mt-1 opacity-90">
-                {destination.name} at {destination.distance}km
-              </div>
-            </div>
-          </div>,
-          {
-            id: 'location-search',
-            style: {
-              background: '#1a1a1a',
-              color: '#fff',
-              borderRadius: '8px',
-              padding: '12px'
-            }
-          }
+      while (!foundLand && attempts < maxAttempts) {
+        const destination = await findDestinationsAlongHeading(
+          location,
+          currentHeading,
+          nextDistance
         );
-      } else {
-        toast.error('No destination found in this direction', { 
-          id: 'location-search',
-          style: {
-            background: '#1a1a1a',
-            color: '#fff',
-            borderRadius: '8px'
-          }
-        });
+        
+        if (!destination) {
+          toast.error('No destination found in this direction', { id: 'location-search' });
+          return;
+        }
+
+        const locationResult = await isLand(
+          destination.location.latitude,
+          destination.location.longitude
+        );
+
+        if (locationResult.isLand && locationResult.details.type === 'land') {
+          addDestination(destination);
+          toast.success('Found next destination!', { id: 'location-search' });
+          foundLand = true;
+        } else {
+          // If we're in water or territorial waters, increase distance and try again
+          nextDistance += distanceIncrement;
+          attempts++;
+        }
+      }
+
+      if (!foundLand) {
+        toast.error('Could not find land after several attempts', { id: 'location-search' });
       }
     } catch (err) {
-      console.error('Error finding destination:', err);
-      toast.error('Failed to find next destination', { 
-        id: 'location-search',
-        style: {
-          background: '#1a1a1a',
-          color: '#fff',
-          borderRadius: '8px'
-        }
-      });
+      console.error('Error finding next destination:', err);
+      toast.error('Error finding next destination', { id: 'location-search' });
     }
   }, [location, heading, isHeadingLocked, destinations.length, addDestination, distanceIncrement]);
 
