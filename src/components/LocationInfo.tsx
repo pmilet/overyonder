@@ -34,16 +34,21 @@ export const LocationInfo: React.FC = () => {
       setLocation(location);
       setIsLoadingLocation(true);
       
+      console.log('Attempting to fetch details for location:', location);
+      
       fetchLocationDetails(location.latitude, location.longitude)
         .then(data => {
+          console.log('Successfully received location details:', data);
           if (data.display_name) {
             setCurrentLocationName(data.display_name);
+          } else {
+            console.warn('No display name found in location details:', data);
           }
         })
         .catch(err => {
-          console.error('Error fetching location details:', err);
+          console.error('Detailed error in location fetch:', err);
           setCurrentLocationName('Location details unavailable');
-          toast.error('Unable to fetch location details');
+          toast.error('Unable to fetch location details: ' + (err.message || 'Unknown error'));
         })
         .finally(() => {
           setIsLoadingLocation(false);
@@ -170,10 +175,61 @@ export const LocationInfo: React.FC = () => {
     return destinationDetails.find(d => d.id === destId);
   };
 
+  useEffect(() => {
+    if (!location && !error) {
+      console.log('Waiting for location...');
+      toast.error(
+        'Location access required. Please ensure:\n' +
+        '1. GPS is enabled\n' +
+        '2. Browser has location permission\n' +
+        '3. You are not in private/incognito mode\n' +
+        '4. You are using HTTPS (or localhost)',
+        {
+          duration: 5000,
+          id: 'location-permission'
+        }
+      );
+    }
+  }, [location, error]);
+
+  const testLocationAPI = async () => {
+    try {
+      // Test with a known location (e.g., London)
+      const testLat = 51.5074;
+      const testLon = -0.1278;
+      
+      toast.loading('Testing location API...', { id: 'test-api' });
+      console.log('Testing API with coordinates:', { testLat, testLon });
+      
+      const result = await fetchLocationDetails(testLat, testLon);
+      console.log('Test API result:', result);
+      
+      toast.success('API test successful!', { id: 'test-api' });
+    } catch (err: unknown) {
+      const error = err as Error;
+      console.error('API test failed:', error);
+      toast.error('API test failed: ' + (error.message || 'Unknown error'), { id: 'test-api' });
+    }
+  };
+
   if (error) {
     return (
       <div className="absolute bottom-32 left-4 bg-black/50 text-white p-2 rounded">
-        <div className="text-red-500">Location Error: {error}</div>
+        <div className="text-red-500">
+          <div className="font-semibold">Location Error</div>
+          <div className="text-sm mt-1">
+            {error}
+          </div>
+          <div className="text-sm mt-2 text-gray-300">
+            Troubleshooting steps:
+            <ul className="list-disc ml-4 mt-1">
+              <li>Check if location is enabled in browser settings</li>
+              <li>Ensure you're using HTTPS or localhost</li>
+              <li>Try refreshing the page</li>
+              <li>Clear browser cache and cookies</li>
+            </ul>
+          </div>
+        </div>
         <button 
           onClick={() => window.location.reload()} 
           className="mt-2 px-3 py-1 bg-white/20 rounded hover:bg-white/30 transition-colors w-full text-sm"
@@ -235,7 +291,28 @@ export const LocationInfo: React.FC = () => {
                 </div>
               ) : (
                 <div className="text-xs text-red-300 mt-1">
-                  Location details unavailable
+                  Unable to fetch location details. 
+                  <button 
+                    onClick={() => {
+                      setIsLoadingLocation(true);
+                      fetchLocationDetails(location.latitude, location.longitude)
+                        .then(data => {
+                          if (data.display_name) {
+                            setCurrentLocationName(data.display_name);
+                          }
+                        })
+                        .catch(err => {
+                          console.error('Error retrying location fetch:', err);
+                          toast.error('Failed to fetch location details');
+                        })
+                        .finally(() => {
+                          setIsLoadingLocation(false);
+                        });
+                    }}
+                    className="ml-2 underline"
+                  >
+                    Retry
+                  </button>
                 </div>
               )}
               <div className="text-xs text-gray-400 mt-1">
@@ -291,6 +368,13 @@ export const LocationInfo: React.FC = () => {
               Find Next Location
             </button>
           )}
+
+          <button
+            onClick={testLocationAPI}
+            className="mt-2 px-3 py-1 bg-gray-500/50 rounded hover:bg-gray-500/70 transition-colors"
+          >
+            Test Location API
+          </button>
         </>
       )}
     </div>
